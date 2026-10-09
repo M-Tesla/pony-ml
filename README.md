@@ -21,4 +21,22 @@ ONNX Runtime is the GPU build with CUDA 13. TensorFlow is the 2.18 C library for
 sh build.sh
 ```
 
-The test checks `multi_io` and `ids` on both runtimes. On ONNX it also checks a 1024 MatMul of ones, whose result is 1024.
+## Tests run on this machine
+
+Machine: Intel Xeon E5-2666 v3, NVIDIA GeForce RTX 3060 12 GB. ONNX Runtime 1.30.0 with the CUDA provider on device 0. TensorFlow 2.18.0 C library, CPU.
+
+`multi_io` has inputs `input_1:f32[-1, 2]` and `input_2:f32[-1, 2]`. Three rows were sent:
+
+- `input_1`: 1 10, 2 20, 3 30
+- `input_2`: 4 1, 5 2, 6 3
+
+ONNX and TensorFlow both returned:
+
+- `out.out_sum`: 5 11, 7 22, 9 33
+- `out.out_diff`: -3 9, -3 18, -3 27
+
+`ids` has input `ids:i64[-1]`. The row 10 20 30 returned `out.ids_out` 11 21 31 on both runtimes.
+
+The ONNX MatMul of a 1024 by 1024 matrix of ones returned 1024 in every checked cell. During that run the provider list included `CUDAExecutionProvider`.
+
+SqueezeNet 1.1 (`squeezenet1.1-7.onnx`, from the ONNX model zoo) declares `data:f32[1, 3, 224, 224]` and `squeezenet0_flatten0_reshape0:f32[1, 1000]`. The input was zeros of that shape. After 50 warmup calls, 200 full calls were timed. A full call builds the request, runs the model, and reads the named output. The times were min 1.064 ms, median 1.121 ms, p99 1.505 ms. While those runs were in progress, GPU utilization peaked at 60% and memory moved from 745 MiB to 958 MiB.
